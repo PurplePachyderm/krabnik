@@ -1,0 +1,12 @@
+[package]
+name = "krabnik"
+version = "0.1.0"
+edition = "2021"
+authors = ["Aurélien Delval <a.delval87@gmail.com"]
+description = """A UCI compliant chess engine written in Rust as a side project, both to \
+play with the language and learn about chess programming."""
+readme = "README.md"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
