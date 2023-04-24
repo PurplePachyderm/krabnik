@@ -1,13 +1,12 @@
 /*
  * Contains the definition of the boards, Position and Coord structs, as well as various
- * functions, methods and consts to interact with them. In this module, we only consider
- * static positions representations, boards are not movable yet (see move_generation.rs for
- * that).
+ * functionsand methods to interact with them. In this module, we only consider static
+ * positions representations, boards are not movable yet (see move_generation.rs for that).
  */
 
-/********
-* CONSTS
-********/
+/**********
+* DATATYPES
+***********/
 
 /// Represents either the black or white player
 #[derive(Copy, Clone, Debug)]
@@ -17,7 +16,7 @@ pub enum Player {
 }
 
 /// Represents any piece, or the empty square
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, PartialEq)]
 pub enum PieceCode {
     ES, // Empty square
 
@@ -36,63 +35,20 @@ pub enum PieceCode {
     BK, // Black king
 }
 
-/// Shorthand to generate integer to PieceCode cast functions
-macro_rules! gen_piece_code_cast {
-    ($name : ident, $type : ty) => {
-        pub fn $name(piece_code: $type) -> PieceCode {
-            gen_piece_code_cast_body!(piece_code)
-        }
-    };
-}
-
-/// Shorthand to generate integer to PieceCode cast functions (function body)
-macro_rules! gen_piece_code_cast_body {
-    ($piece_code : ident) => {
-        match $piece_code {
-            0 => PieceCode::ES,
-            1 => PieceCode::WP,
-            2 => PieceCode::WN,
-            3 => PieceCode::WB,
-            4 => PieceCode::WR,
-            5 => PieceCode::WQ,
-            6 => PieceCode::WK,
-            7 => PieceCode::BP,
-            8 => PieceCode::BN,
-            9 => PieceCode::BB,
-            10 => PieceCode::BR,
-            11 => PieceCode::BQ,
-            12 => PieceCode::BK,
-            _ => panic!("Unknown PieceCode: {}", $piece_code),
-        }
-    };
-}
-
-impl PieceCode {
-    gen_piece_code_cast!(from_u8, u8);
-    gen_piece_code_cast!(from_u16, u16);
-    gen_piece_code_cast!(from_u32, u32);
-    gen_piece_code_cast!(from_u64, u64);
-    gen_piece_code_cast!(from_usize, usize);
-}
-
-/***********
-* DATATYPES
-***********/
-
 /// Piece centric bitoard representation. One u64 represents a board in row-major ordering
 /// (starting from the a1 square)
 /// See : <https://www.chessprogramming.org/Bitboards>
 #[derive(Debug)]
 pub struct BitBoard {
     /// Main boards for positions of each piece type.
-    /// Should be indexed using piece code consts.
+    /// Should be indexed using PieceCode
     main_boards: [u64; 12],
 
     /// Only one en passant bitboard is needed, as it changes every ply
     en_passant_board: u64,
 }
 
-/// Square centric 0x88 board representation. Its values correspond to the piece code consts.
+/// Square centric 0x88 board representation. Its values correspond to the PieceCode values.
 /// See : <https://www.chessprogramming.org/0x88>
 #[derive(Debug)]
 pub struct Zerox88Board {
@@ -114,11 +70,10 @@ pub struct Position {
     square_centric_board: Zerox88Board,
 
     /* Other game state informations */
-    /// Should always equal the WHITE or BLACK consts
     current_turn: Player,
 
     /// Specify if each player can castle on each side.
-    /// Should be indexed using the WHITE and BLACK consts for clarity.
+    /// Should be indexed using the Player enum for clarity.
     can_castle_kingside: [bool; 2],
     can_castle_queenside: [bool; 2],
 
@@ -138,9 +93,9 @@ pub struct Coord {
     rank: u8,
 }
 
-/**************
- * INIT METHODS
- **************/
+/*************
+* INIT METHODS
+**************/
 
 /// Default trait for bitboard is the normal starting position
 impl Default for BitBoard {
@@ -250,9 +205,9 @@ impl Coord {
     }
 }
 
-/*******************
- * STATICBOARD TRAIT
- *******************/
+/******************
+* STATICBOARD TRAIT
+*******************/
 
 /// This trait contains a collection of utlity methods to manipulate a position
 pub trait StaticBoard {
@@ -321,7 +276,21 @@ impl StaticBoard for BitBoard {
 
     fn set_square(&mut self, piece_code: PieceCode, coord: Coord) {
         let mask: u64 = 0b10000000 << ((7 - coord.rank) << 3) >> coord.file;
-        self.main_boards[piece_code as usize - 1] |= mask;
+
+        if piece_code != PieceCode::ES {
+            self.main_boards[piece_code as usize - 1] |= mask;
+        } else {
+            // We're emptying a square, this is a special case, as we will need to find
+            // the piece board we will be overwriting
+            for i in 0..12 {
+                let piece: u64 = self.main_boards[i] & mask;
+                if piece != 0 {
+                    // We found the correct piece board
+                    self.main_boards[i] &= !mask;
+                    return;
+                }
+            }
+        }
     }
 }
 
@@ -389,9 +358,48 @@ impl StaticBoard for Position {
     }
 }
 
-/****************
- * MISC FUNCTIONS
- ***************/
+/***************
+* MISC FUNCTIONS
+****************/
+
+/// Shorthand to generate integer to PieceCode cast functions
+macro_rules! gen_piece_code_cast {
+    ($name : ident, $type : ty) => {
+        pub fn $name(piece_code: $type) -> PieceCode {
+            gen_piece_code_cast_body!(piece_code)
+        }
+    };
+}
+
+/// Shorthand to generate integer to PieceCode cast functions (function body)
+macro_rules! gen_piece_code_cast_body {
+    ($piece_code : ident) => {
+        match $piece_code {
+            0 => PieceCode::ES,
+            1 => PieceCode::WP,
+            2 => PieceCode::WN,
+            3 => PieceCode::WB,
+            4 => PieceCode::WR,
+            5 => PieceCode::WQ,
+            6 => PieceCode::WK,
+            7 => PieceCode::BP,
+            8 => PieceCode::BN,
+            9 => PieceCode::BB,
+            10 => PieceCode::BR,
+            11 => PieceCode::BQ,
+            12 => PieceCode::BK,
+            _ => panic!("Unknown PieceCode: {}", $piece_code),
+        }
+    };
+}
+
+impl PieceCode {
+    gen_piece_code_cast!(from_u8, u8);
+    gen_piece_code_cast!(from_u16, u16);
+    gen_piece_code_cast!(from_u32, u32);
+    gen_piece_code_cast!(from_u64, u64);
+    gen_piece_code_cast!(from_usize, usize);
+}
 
 /// From a piece ID, return its Unicode character
 pub fn get_unicode_piece(piece_code: PieceCode) -> char {
@@ -412,4 +420,73 @@ pub fn get_unicode_piece(piece_code: PieceCode) -> char {
         PieceCode::BQ => '♛',
         PieceCode::BK => '♚',
     }
+}
+
+/******
+* TESTS
+*******/
+
+#[test]
+fn test_static_board() {
+    // BitBoard
+
+    let mut bit: BitBoard = BitBoard::new();
+    let bit_c8: PieceCode = bit.get_square(Coord::new(2, 7));
+    let mut bit_e2: PieceCode = bit.get_square(Coord::new(4, 1));
+    let mut bit_e4: PieceCode = bit.get_square(Coord::new(4, 3));
+
+    print!("Bit board :\n{}", bit.ascii());
+    println!("Bit c8 : {}", get_unicode_piece(bit_c8));
+    println!("Bit e2 : {}", get_unicode_piece(bit_e2));
+    println!("Bit e4 : {}\n", get_unicode_piece(bit_e4));
+
+    assert!(bit_c8 == PieceCode::BB);
+    assert!(bit_e2 == PieceCode::WP);
+    assert!(bit_e4 == PieceCode::ES);
+
+    bit.set_square(PieceCode::ES, Coord::new(4, 1));
+    bit.set_square(PieceCode::WP, Coord::new(4, 3));
+    bit_e2 = bit.get_square(Coord::new(4, 1));
+    bit_e4 = bit.get_square(Coord::new(4, 3));
+
+    print!("Bit board after playing e4 :\n{}", bit.ascii());
+    println!("Bit e2 after playing e4 : {}", get_unicode_piece(bit_e2));
+    println!(
+        "Bit e4 after playing e4 : {}\n\n",
+        get_unicode_piece(bit_e4)
+    );
+
+    assert!(bit_e2 == PieceCode::ES);
+    assert!(bit_e4 == PieceCode::WP);
+
+    // Zerox88Board
+
+    let mut zerox: Zerox88Board = Zerox88Board::new();
+    let zerox_c8: PieceCode = zerox.get_square(Coord::new(2, 7));
+    let mut zerox_e2: PieceCode = zerox.get_square(Coord::new(4, 1));
+    let mut zerox_e4: PieceCode = zerox.get_square(Coord::new(4, 3));
+
+    print!("0x88 board :\n{}", zerox.ascii());
+    println!("0x88 c8 : {}", get_unicode_piece(zerox_c8));
+    println!("0x88 e2 : {}", get_unicode_piece(zerox_e2));
+    println!("0x88 e4 : {}\n", get_unicode_piece(zerox_e4));
+
+    assert!(zerox_c8 == PieceCode::BB);
+    assert!(zerox_e2 == PieceCode::WP);
+    assert!(zerox_e4 == PieceCode::ES);
+
+    zerox.set_square(PieceCode::ES, Coord::new(4, 1));
+    zerox.set_square(PieceCode::WP, Coord::new(4, 3));
+    zerox_e2 = zerox.get_square(Coord::new(4, 1));
+    zerox_e4 = zerox.get_square(Coord::new(4, 3));
+
+    print!("0x88 board after playing e4 :\n{}", zerox.ascii());
+    println!("0x88 e2 after playing e4 : {}", get_unicode_piece(zerox_e2));
+    println!(
+        "0x88 e4 after playing e4 : {}\n",
+        get_unicode_piece(zerox_e4)
+    );
+
+    assert!(zerox_e2 == PieceCode::ES);
+    assert!(zerox_e4 == PieceCode::WP);
 }
