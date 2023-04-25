@@ -1,5 +1,7 @@
 # [WIP] Krabnik : a UCI compliant chess engine written in Rust
 
+[![Test suite](https://github.com/PurplePachyderm/krabnik/actions/workflows/rust.yml/badge.svg)](https://github.com/PurplePachyderm/krabnik/actions/workflows/rust.yml)
+
 Krabnik is a [UCI](https://en.wikipedia.org/wiki/Universal_Chess_Interface) compliant chess engine written in Rust as a side project, both to play with the language and learn about chess programming.
 
 ## Build & install
