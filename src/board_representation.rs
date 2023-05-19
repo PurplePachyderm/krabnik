@@ -6,12 +6,12 @@
  */
 
 pub mod datatypes;
-pub mod staticboard;
 pub mod misc;
+pub mod static_board;
 
-use datatypes::*;
-use staticboard::*;
-use misc::*;
+pub use datatypes::*;
+pub use misc::*;
+pub use static_board::*;
 
 /******
 * TESTS

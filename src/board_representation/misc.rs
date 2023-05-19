@@ -1,15 +1,7 @@
-/*
- * The board_representations module contains the definition of the boards, Position and
- * Coord structs, as well as various functions and methods to interact with them. In this
- * module, we only consider static positions representations, boards are not movable yet
- * (see the move_generation module for that).
- */
-
 #![allow(dead_code)]
 
-
 use super::datatypes::*;
-use super::staticboard::*;
+use super::static_board::*;
 
 /*************************
 * MISC METHODS & FUNCTIONS
