@@ -4,19 +4,21 @@
  * positions representations, boards are not movable yet (see move_generation.rs for that).
  */
 
+#![allow(dead_code)]
+
 /**********
 * DATATYPES
 ***********/
 
 /// Represents either the black or white player
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum Player {
     White,
     Black,
 }
 
 /// Represents any piece, or the empty square
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum PieceCode {
     ES, // Empty square
 
@@ -42,18 +44,18 @@ pub enum PieceCode {
 pub struct BitBoard {
     /// Main boards for positions of each piece type.
     /// Should be indexed using PieceCode
-    main_boards: [u64; 12],
+    pub main_boards: [u64; 12],
 
     /// Only one en passant bitboard is needed, as it changes every ply
-    en_passant_board: u64,
+    pub en_passant_board: u64,
 }
 
 /// Square centric 0x88 board representation. Its values correspond to the PieceCode values.
 /// See : <https://www.chessprogramming.org/0x88>
 #[derive(Debug)]
 pub struct Zerox88Board {
-    main_board: [PieceCode; 128],
-    en_passant_board: [PieceCode; 128],
+    pub main_board: [PieceCode; 128],
+    pub en_passant_board: [PieceCode; 128],
 }
 
 /// This structure contains all the required data to represent a chess position.
@@ -64,21 +66,21 @@ pub struct Zerox88Board {
 pub struct Position {
     /* Pieces positions */
     /// Piece-centric bitboard representation
-    piece_centric_board: BitBoard,
+    pub piece_centric_board: BitBoard,
 
     /// Square-centric 0x88 representation
-    square_centric_board: Zerox88Board,
+    pub square_centric_board: Zerox88Board,
 
     /* Other game state informations */
-    current_turn: Player,
+    pub current_turn: Player,
 
     /// Specify if each player can castle on each side.
     /// Should be indexed using the Player enum for clarity.
-    can_castle_kingside: [bool; 2],
-    can_castle_queenside: [bool; 2],
+    pub can_castle_kingside: [bool; 2],
+    pub can_castle_queenside: [bool; 2],
 
     /// Used for the 50 moves rule
-    plys_without_capture: u8,
+    pub plys_without_capture: u8,
     /* TODO Add a way to check for threefold repetitions. This will likely involve
      * transposition tables. However, a linked list containing all the previous boards could
      * work at the beginning, albeit quite inefficient. */
@@ -89,8 +91,8 @@ pub struct Position {
 /// not require any additional checking.
 #[derive(Copy, Clone, Debug)]
 pub struct Coord {
-    file: u8,
-    rank: u8,
+    pub f: u8,
+    pub r: u8,
 }
 
 /*************
@@ -193,15 +195,20 @@ impl Position {
 /// Default trait for Coord is the a1 square
 impl Default for Coord {
     fn default() -> Coord {
-        Coord { file: 0, rank: 0 }
+        Coord { f: 0, r: 0 }
     }
 }
 
 impl Coord {
     /// Initialize from a couple of u8 with value checking
-    pub fn new(f: u8, r: u8) -> Coord {
-        assert!(f < 8 && r < 8);
-        Coord { file: f, rank: r }
+    pub fn new(file: u8, rank: u8) -> Coord {
+        assert!(
+            file < 8 && rank < 8,
+            "Tried to build out of bounds coordinates ({}, {})",
+            file,
+            rank
+        );
+        Coord { f: file, r: rank }
     }
 }
 
@@ -263,7 +270,7 @@ impl StaticBoard for BitBoard {
     }
 
     fn get_square(&self, coord: Coord) -> PieceCode {
-        let mask: u64 = 0b10000000 << ((7 - coord.rank) << 3) >> coord.file;
+        let mask: u64 = 0b10000000 << ((7 - coord.r) << 3) >> coord.f;
 
         for i in 0..12 {
             let piece: u64 = self.main_boards[i] & mask;
@@ -275,7 +282,7 @@ impl StaticBoard for BitBoard {
     }
 
     fn set_square(&mut self, piece_code: PieceCode, coord: Coord) {
-        let mask: u64 = 0b10000000 << ((7 - coord.rank) << 3) >> coord.file;
+        let mask: u64 = 0b10000000 << ((7 - coord.r) << 3) >> coord.f;
 
         if piece_code != PieceCode::ES {
             self.main_boards[piece_code as usize - 1] |= mask;
@@ -322,11 +329,11 @@ impl StaticBoard for Zerox88Board {
     }
 
     fn get_square(&self, coord: Coord) -> PieceCode {
-        self.main_board[((coord.rank << 4) + coord.file) as usize]
+        self.main_board[((coord.r << 4) + coord.f) as usize]
     }
 
     fn set_square(&mut self, piece_code: PieceCode, coord: Coord) {
-        self.main_board[((coord.rank << 4) + coord.file) as usize] = piece_code;
+        self.main_board[((coord.r << 4) + coord.f) as usize] = piece_code;
     }
 }
 
@@ -362,9 +369,29 @@ impl StaticBoard for Position {
 * MISC METHODS & FUNCTIONS
 **************************/
 
+/// Macro to return a bitboard on the a1 square. This bitboard can later be shifted to point
+/// to another square.
+macro_rules! a1_bitboard {
+    () => {
+        0x8000000000000000
+    };
+}
+
+/// From a Coord, get a bitboard corresponding to the square
+pub fn get_square_bitboard(coord: Coord) -> u64 {
+    a1_bitboard!() >> (coord.r << 3) >> coord.f
+}
+
+pub fn invert_player(player: &Player) -> Player {
+    match player {
+        Player::White => Player::Black,
+        Player::Black => Player::White,
+    }
+}
+
 impl BitBoard {
     /// Copy content of a 0x88 board onto the bitboard
-    fn apply_0x88_board(&mut self, zerox88_board: &Zerox88Board) {
+    pub fn apply_0x88_board(&mut self, zerox88_board: &Zerox88Board) {
         // Clean all bitboards
         for i in 0..12 {
             self.main_boards[i] = 0;
@@ -372,7 +399,7 @@ impl BitBoard {
         self.en_passant_board = 0;
 
         // Copy pieces
-        let mut mask: u64 = 0b1 << 63;
+        let mut mask: u64 = a1_bitboard!();
         for i in 0..8 {
             for j in 0..8 {
                 // Fill main boards
@@ -387,7 +414,7 @@ impl BitBoard {
                     self.en_passant_board |= mask;
                 }
 
-                mask = mask >> 1;
+                mask >>= 1;
             }
         }
     }
@@ -395,7 +422,7 @@ impl BitBoard {
 
 impl Zerox88Board {
     /// Copy content of a bitboard onto the 0x88 board
-    fn apply_bitboard(&mut self, bitboard: &BitBoard) {
+    pub fn apply_bitboard(&mut self, bitboard: &BitBoard) {
         // Clean boards
         for i in 0..128 {
             self.main_board[i] = PieceCode::ES;
@@ -403,7 +430,7 @@ impl Zerox88Board {
         }
 
         // Copy pieces
-        let mut mask: u64 = 0b1 << 63;
+        let mut mask: u64 = a1_bitboard!();
         for i in 0..8 {
             for j in 0..8 {
                 // Fill main board
@@ -429,23 +456,23 @@ impl Zerox88Board {
 
 impl Position {
     /// Copy content of a 0x88 board onto the Position
-    fn apply_0x88_board(&mut self, zerox88_board: &Zerox88Board) {
+    pub fn apply_0x88_board(&mut self, zerox88_board: &Zerox88Board) {
         self.piece_centric_board.apply_0x88_board(zerox88_board);
     }
 
     /// Copy content of a bitboard onto the Position
-    fn apply_bitboard(&mut self, bitboard: &BitBoard) {
+    pub fn apply_bitboard(&mut self, bitboard: &BitBoard) {
         self.square_centric_board.apply_bitboard(bitboard);
     }
 
     /// Copy content of the Position's own 0x88 board onto its own bitboard
-    fn apply_own_0x88_board(&mut self, zerox88_board: &Zerox88Board) {
+    pub fn apply_own_0x88_board(&mut self) {
         self.piece_centric_board
             .apply_0x88_board(&self.square_centric_board);
     }
 
     /// Copy content of the Position's own bitboard onto its own 0x88 board
-    fn apply_own_bitboard(&mut self, bitboard: &BitBoard) {
+    pub fn apply_own_bitboard(&mut self) {
         self.square_centric_board
             .apply_bitboard(&self.piece_centric_board);
     }
@@ -529,9 +556,9 @@ fn test_static_board() {
     println!("Bit e2 : {}", get_unicode_piece(bit_e2));
     println!("Bit e4 : {}\n", get_unicode_piece(bit_e4));
 
-    assert!(bit_c8 == PieceCode::BB);
-    assert!(bit_e2 == PieceCode::WP);
-    assert!(bit_e4 == PieceCode::ES);
+    assert!(bit_c8 == PieceCode::BB, "Failed at assert 0");
+    assert!(bit_e2 == PieceCode::WP, "Failed at assert 1");
+    assert!(bit_e4 == PieceCode::ES, "Failed at assert 2");
 
     bit.set_square(PieceCode::ES, Coord::new(4, 1));
     bit.set_square(PieceCode::WP, Coord::new(4, 3));
@@ -545,8 +572,8 @@ fn test_static_board() {
         get_unicode_piece(bit_e4)
     );
 
-    assert!(bit_e2 == PieceCode::ES);
-    assert!(bit_e4 == PieceCode::WP);
+    assert!(bit_e2 == PieceCode::ES, "Failed at assert 3");
+    assert!(bit_e4 == PieceCode::WP, "Failed at assert 4");
 
     // Zerox88Board
 
@@ -560,9 +587,9 @@ fn test_static_board() {
     println!("0x88 e2 : {}", get_unicode_piece(zerox_e2));
     println!("0x88 e4 : {}\n", get_unicode_piece(zerox_e4));
 
-    assert!(zerox_c8 == PieceCode::BB);
-    assert!(zerox_e2 == PieceCode::WP);
-    assert!(zerox_e4 == PieceCode::ES);
+    assert!(zerox_c8 == PieceCode::BB, "Failed at assert 4");
+    assert!(zerox_e2 == PieceCode::WP, "Failed at assert 5");
+    assert!(zerox_e4 == PieceCode::ES, "Failed at assert 6");
 
     zerox.set_square(PieceCode::ES, Coord::new(4, 1));
     zerox.set_square(PieceCode::WP, Coord::new(4, 3));
@@ -576,8 +603,8 @@ fn test_static_board() {
         get_unicode_piece(zerox_e4)
     );
 
-    assert!(zerox_e2 == PieceCode::ES);
-    assert!(zerox_e4 == PieceCode::WP);
+    assert!(zerox_e2 == PieceCode::ES, "Failed at assert 7");
+    assert!(zerox_e4 == PieceCode::WP, "Failed at assert 8");
 
     // Test board copies
     bit.set_square(PieceCode::ES, Coord::new(4, 6));
@@ -592,5 +619,8 @@ fn test_static_board() {
     print!("Bit board after copies :\n{}", bit.ascii());
     println!("Bit e2 after copies : {}", get_unicode_piece(bit_e2));
 
-    assert!(bit_e2 == PieceCode::WK);
+    assert!(bit_e2 == PieceCode::WK, "Failed at assert 9");
+
+    // Test the get_square_bitboard func
+    assert!(get_square_bitboard(Coord::new(4, 1)) == 0b1 << 63 >> 12);
 }
