@@ -3,6 +3,13 @@
  * Coord structs, as well as various functions and methods to interact with them. In this
  * module, we only consider static positions representations, boards are not movable yet
  * (see the move_generation module for that).
+ *
+ * The current state of a game is represented by the Position type, which contains redundant
+ * piece and square centric representations of the board, as well as some metadata (such
+ * as the current turn, castling info, ...).
+ *
+ * This module is the core of the engine, and contains definitions for all fundamental
+ * datatypes.
  */
 
 pub mod datatypes;

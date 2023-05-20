@@ -14,6 +14,7 @@ macro_rules! a1_bitboard {
         0x8000000000000000
     };
 }
+pub(crate) use a1_bitboard;
 
 /// From a Coord, get a bitboard corresponding to the square
 pub fn get_square_bitboard(coord: Coord) -> u64 {

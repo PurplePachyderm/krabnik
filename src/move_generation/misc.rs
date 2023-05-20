@@ -106,7 +106,7 @@ pub fn get_move_checkmate(mov: u32) -> bool {
  * MISC UTILITY FUNCTIONS
  ************************/
 
-/// Pops (set to 0) the MSB of a bitboard (u64) and return its index
+/// Pop (set to 0) the MSB of a bitboard (u64) and return its index
 fn pop_msb(bitboard: &mut u64) {}
 
 fn get_player_bitboard(bitboard: &BitBoard, player: Player) -> u64 {
@@ -141,3 +141,7 @@ fn get_all_pieces_bitboard(bitboard: &BitBoard, player: Player) -> u64 {
         & bitboard.main_boards[10]
         & bitboard.main_boards[11]
 }
+
+// Generate a bitboard of all our own pinned pieces (by checking which squares are attacked
+// by the opponent's long range pieces)
+// TODO
