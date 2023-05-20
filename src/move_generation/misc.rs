@@ -127,7 +127,7 @@ fn get_player_bitboard(bitboard: &BitBoard, player: Player) -> u64 {
     }
 }
 
-fn get_all_pieces_bitboard(bitboard: &BitBoard, player: Player) -> u64 {
+fn get_all_pieces_bitboard(bitboard: &BitBoard) -> u64 {
     bitboard.main_boards[0]
         & bitboard.main_boards[1]
         & bitboard.main_boards[2]

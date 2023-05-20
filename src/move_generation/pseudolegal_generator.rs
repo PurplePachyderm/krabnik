@@ -185,7 +185,7 @@ fn gen_pl_k_moves(coord: Coord) -> u64 {
 
 /// Precompute pseudolegal pawn moves for all squares, and return them in an array of
 /// bitboards of size 64
-pub fn precompute_pl_p_moves(player: Player) -> [u64; 64] {
+fn precompute_pl_p_moves(player: Player) -> [u64; 64] {
     let mut pseudolegal_moves: [u64; 64] = [0; 64];
     for i in 0..8 {
         for j in 0..8 {
@@ -197,7 +197,7 @@ pub fn precompute_pl_p_moves(player: Player) -> [u64; 64] {
 
 /// Precompute pseudolegal knight moves for all squares, and return them in an array of
 /// bitboards of size 64
-pub fn precompute_pl_n_moves() -> [u64; 64] {
+fn precompute_pl_n_moves() -> [u64; 64] {
     let mut pseudolegal_moves: [u64; 64] = [0; 64];
     for i in 0..8 {
         for j in 0..8 {
@@ -209,7 +209,7 @@ pub fn precompute_pl_n_moves() -> [u64; 64] {
 
 /// Precompute pseudolegal king moves for all squares, and return them in an array of
 /// bitboards of size 64
-pub fn precompute_pl_k_moves() -> [u64; 64] {
+fn precompute_pl_k_moves() -> [u64; 64] {
     let mut pseudolegal_moves: [u64; 64] = [0; 64];
     for i in 0..8 {
         for j in 0..8 {
@@ -224,11 +224,92 @@ pub fn precompute_pl_k_moves() -> [u64; 64] {
  *********************************************/
 
 // NOTE Because sliding/long-range pieces can get their line of sight blocked by other
-// pieces, efficiently generating moves for them is a bit trickier. For that, we use
-// "magic bitboards". See this SO answer for a good explanation of the following code :
-// <https://stackoverflow.com/a/30862064>
+// pieces, efficiently generating moves for them is a bit trickier. To that effect, we use
+// "magic bitboards". See this blog post for a good explanation of the following code :
+// <https://rhysre.net/fast-chess-move-generation-with-magic-bitboards.html>
 
-// TODO
+fn gen_pl_r_moves(coord : Coord) -> u64 {
+    let mut pseudolegal_moves : u64 = 0;
+
+    let file_mask : u64 = 0x80_80_80_80_80_80_80_80;
+    let rank_mask : u64 = 0xff_00_00_00_00_00_00_00;
+
+    // Shift masks and apply them on rook mask
+    pseudolegal_moves |= file_mask >> coord.f;
+    pseudolegal_moves |= rank_mask >> coord.r;
+
+    // Substract the square on which the rook itself is located
+    pseudolegal_moves &= !(a1_bitboard!() >> (8*coord.r) >> coord.f);
+
+    pseudolegal_moves
+}
+
+fn gen_pl_b_moves(coord : Coord) -> u64 {
+    let mut pseudolegal_moves : u64 = 0;
+
+    let bishop_bitboard: u64 = a1_bitboard!() >> (8 * coord.r) >> coord.f;
+
+    // Precompute all SW-NE diagonals, and see on which one (if any) the piece is located
+    let sw_ne_diags : [u64; 15] = [
+        0x00_00_00_00_00_00_00_80, // a8
+        0x00_00_00_00_00_00_80_40, // a7-b8
+        0x00_00_00_00_00_80_40_20, // a6-c8
+        0x00_00_00_00_80_40_20_10, // a5-d8
+        0x00_00_00_80_40_20_10_08, // a4-e8
+        0x00_00_80_40_20_10_08_04, // a3-f8
+        0x00_80_40_20_10_08_04_02, // a2-g8
+        0x80_40_20_10_08_04_02_01, // a1-h8 (long one)
+        0x40_20_10_08_04_02_01_00, // b1-h7
+        0x20_10_08_04_02_01_00_00, // c1-h6
+        0x10_08_04_02_01_00_00_00, // d1-h5
+        0x08_04_02_01_00_00_00_00, // e1-h3
+        0x04_02_01_00_00_00_00_00, // f1-h3
+        0x02_01_00_00_00_00_00_00, // g1-h2
+        0x01_00_00_00_00_00_00_00, // h1
+    ];
+
+    for i in 0..15 {
+        if bishop_bitboard & sw_ne_diags[i] != 0 {
+            // We found our SW-NE diagonal, add it to the pseudolegal_moves
+            pseudolegal_moves |= sw_ne_diags[i];
+            break;
+        }
+    }
+
+    // Same for NW-SE diagonals
+    let nw_se_diags : [u64; 15] = [
+        0x00_00_00_00_00_00_00_01, // h8
+        0x00_00_00_00_00_00_01_02, // h7-g8
+        0x00_00_00_00_00_01_02_04, // h6-f8
+        0x00_00_00_00_01_02_04_08, // h5-e8
+        0x00_00_00_01_02_04_08_10, // h4-d8
+        0x00_00_01_02_04_08_10_20, // h3-c8
+        0x00_01_02_04_08_10_20_40, // h2-b8
+        0x01_02_04_08_10_20_40_80, // h1-a8 (long one)
+        0x02_04_08_10_20_40_80_00, // g1-a7
+        0x04_08_10_20_40_80_00_00, // f1-a6
+        0x08_10_20_40_80_00_00_00, // e1-a5
+        0x10_20_40_80_00_00_00_00, // d1-a3
+        0x20_40_80_00_00_00_00_00, // c1-a3
+        0x40_80_00_00_00_00_00_00, // b1-a2
+        0x80_00_00_00_00_00_00_00, // a1
+    ];
+
+    for i in 0..15 {
+        if bishop_bitboard & nw_se_diags[i] != 0 {
+            // We found our NW-SE diagonal, add it to the pseudolegal_moves
+            pseudolegal_moves |= nw_se_diags[i];
+            break;
+        }
+    }
+
+
+    // Substract the square on which the bishop itself is located
+    pseudolegal_moves &= !bishop_bitboard;
+
+    pseudolegal_moves
+}
+
 
 /**************************
  * PSEUDOLEGAL LOOKUP TABLE

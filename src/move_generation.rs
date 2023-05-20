@@ -40,3 +40,12 @@ pub use legal_generator::*;
 pub use misc::*;
 pub use movable_board::*;
 pub use pseudolegal_generator::*;
+
+/*******************
+ * PSEUDOLEGAL TESTS
+ *******************/
+
+#[test]
+fn test_static_board() {
+
+}
